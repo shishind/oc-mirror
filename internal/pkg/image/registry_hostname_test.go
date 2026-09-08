@@ -49,6 +49,30 @@ func TestValidateDockerDestinationRegistry(t *testing.T) {
 			dest:        consts.DockerProtocol,
 			expectError: "destination registry hostname is empty",
 		},
+		{
+			name:        "leading space before docker protocol uppercase hostname",
+			dest:        " " + consts.DockerProtocol + "REGISTRY.EXAMPLE.COM:5000",
+			expectError: `destination registry hostname "REGISTRY.EXAMPLE.COM" contains uppercase characters; use lowercase (e.g. "registry.example.com") because CRI-O rejects uppercase registry hostnames`,
+		},
+		{
+			name: "leading space before docker protocol lowercase hostname",
+			dest: " " + consts.DockerProtocol + "registry.example.com:5000",
+		},
+		{
+			name:        "empty bracketed host",
+			dest:        consts.DockerProtocol + "[]:5000/ns",
+			expectError: `destination registry hostname "[]" is not a valid IP literal`,
+		},
+		{
+			name:        "bracketed non-ip host",
+			dest:        consts.DockerProtocol + "[not-an-ip]:5000/ns",
+			expectError: `destination registry hostname "[not-an-ip]" is not a valid IP literal`,
+		},
+		{
+			name:        "bracketed mixed-case host is not a lowercase suggestion",
+			dest:        consts.DockerProtocol + "[MyHost]:5000",
+			expectError: `destination registry hostname "[MyHost]" is not a valid IP literal`,
+		},
 	}
 
 	for _, tt := range tests {

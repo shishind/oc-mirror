@@ -13,11 +13,13 @@ import (
 // CRI-O rejects uppercase letters in registry hostnames, so oc-mirror fails early
 // rather than producing mirrored content that cluster nodes cannot pull (OCPBUGS-78497).
 func ValidateDockerDestinationRegistry(dest string) error {
-	if !strings.HasPrefix(dest, consts.DockerProtocol) {
+	// Cut (not HasPrefix) so this matches call sites that detect docker:// with Contains,
+	// including a leading space before the protocol.
+	_, ref, found := strings.Cut(dest, consts.DockerProtocol)
+	if !found {
 		return nil
 	}
 
-	ref := strings.TrimPrefix(dest, consts.DockerProtocol)
 	hostname := registryHostname(ref)
 	if hostname == "" {
 		return fmt.Errorf("destination registry hostname is empty")
@@ -25,12 +27,17 @@ func ValidateDockerDestinationRegistry(dest string) error {
 
 	// IP literals (IPv4 / IPv6) are not subject to DNS hostname case rules.
 	// IPv6 hex digits may be uppercase and remain valid.
-	if hostForIP := hostname; strings.HasPrefix(hostForIP, "[") && strings.HasSuffix(hostForIP, "]") {
-		hostForIP = hostForIP[1 : len(hostForIP)-1]
-		if net.ParseIP(hostForIP) != nil {
-			return nil
+	// Bracketed hosts are IP literals only; anything else in [] is not a DNS hostname.
+	if strings.HasPrefix(hostname, "[") {
+		if !strings.HasSuffix(hostname, "]") {
+			return fmt.Errorf("destination registry hostname %q is not a valid IP literal", hostname)
 		}
-	} else if net.ParseIP(hostname) != nil {
+		if net.ParseIP(hostname[1:len(hostname)-1]) == nil {
+			return fmt.Errorf("destination registry hostname %q is not a valid IP literal", hostname)
+		}
+		return nil
+	}
+	if net.ParseIP(hostname) != nil {
 		return nil
 	}
 

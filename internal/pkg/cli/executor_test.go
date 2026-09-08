@@ -597,6 +597,10 @@ func TestExecutorValidate(t *testing.T) {
 		opts.Global.WorkingDir = ""
 		err = ex.Validate([]string{consts.DockerProtocol + "REGISTRY.EXAMPLE.COM:5000"})
 		assert.EqualError(t, err, `destination registry hostname "REGISTRY.EXAMPLE.COM" contains uppercase characters; use lowercase (e.g. "registry.example.com") because CRI-O rejects uppercase registry hostnames`)
+
+		// Leading space still matches Contains(docker://) at the call site and must be validated.
+		err = ex.Validate([]string{" " + consts.DockerProtocol + "REGISTRY.EXAMPLE.COM:5000"})
+		assert.EqualError(t, err, `destination registry hostname "REGISTRY.EXAMPLE.COM" contains uppercase characters; use lowercase (e.g. "registry.example.com") because CRI-O rejects uppercase registry hostnames`)
 	})
 }
 
